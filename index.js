@@ -13,7 +13,9 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*'
+}));
 app.use(express.json());
 
 // Routes
@@ -29,6 +31,16 @@ app.get('/', (req, res) => {
       '/api/reviews/analyze',
       '/api/reviews/compare'
     ]
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err.message);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'An unexpected error occurred',
+    error: process.env.NODE_ENV === 'production' ? {} : err
   });
 });
 

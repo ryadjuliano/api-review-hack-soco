@@ -27,15 +27,14 @@ const fetchProduct = async () => {
 
 
 const fetchReviews = async (id) => {
+    // const API_URL = "https://uat-ms-soco-public-api.sociolabs.io/reviews";
     const API_URL = "https://api.soco.id/reviews";
     const FILTER_PARAMS = encodeURIComponent(
       JSON.stringify({
-        is_published: true,
-        elastic_search: true,
-        product_id: id,
-        is_highlight: true,
-        is_spam: false,
-        deleted_at: null
+            is_published: true,
+            product_id: id,
+            is_spam: false,
+            deleted_at: null
       })
     );
   

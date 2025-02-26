@@ -10,45 +10,91 @@ const axios = require('axios');
  */
 const fetchUser = async (authHeader) => {
     try {
-        const apiUrl = 'https://accounts-api.soco.id/user/me';
+        // const apiUrl = 'https://uat-ms-soco-public-api.sociolabs.io/user/me';
+        const apiUrl = 'https://api.soco.id/user/me';
         const filter = encodeURIComponent(JSON.stringify({ get_user_address: true }));
         const url = `${apiUrl}?filter=${filter}`;
 
-        const response = await axios.get(url, {
+        // Create a custom axios instance with specific configuration
+        const apiClient = axios.create({
+            timeout: 15000, // 15 second timeout
+            withCredentials: false, // Don't send cookies
+        });
+
+        console.log('Making user API request to:', url);
+        
+        const response = await apiClient.get(url, {
             headers: {
-                Authorization: authHeader
+                Authorization: authHeader,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                // Add a user agent to make the request look more like a browser
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
             }
         });
 
+        console.log('User API response status:', response.status);
         return response.data?.data || {};
     } catch (error) {
+        // More detailed error logging
         console.error('Error fetching user data:', error.message);
-        throw new Error('Failed to fetch user data');
+        
+        if (error.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            console.error('Error response data:', error.response.data);
+            console.error('Error response status:', error.response.status);
+            console.error('Error response headers:', error.response.headers);
+        } else if (error.request) {
+            // The request was made but no response was received
+            console.error('No response received from server:', error.request);
+        }
+        
+        // Return an empty object instead of throwing an error
+        // This prevents the API from failing completely when user data can't be retrieved
+        return {};
     }
 };
 
 const fetchReviews = async (id) => {
-    const API_URL = "https://api.soco.id/reviews";
-    const FILTER_PARAMS = encodeURIComponent(
-        JSON.stringify({
-            is_published: true,
-            elastic_search: true,
-            product_id: id,
-            is_highlight: true,
-            is_spam: false,
-            deleted_at: null
-        })
-    );
-
-    const FULL_URL = `${API_URL}?filter=${FILTER_PARAMS}&skip=0&limit=50&sort=most_relevant`;
+    // Use the exact filter structure from the working example
+    // Notice we're using the number (not string) format for product_id in the JSON
+    const filterJson = JSON.stringify({
+        "$and": [
+            {
+                "product_id": `${id}` // Convert to string
+            }
+        ]
+    });
+    
+    // Create the exact same URL as the working example
+    // const baseUrl = 'https://uat-ms-soco-public-api.sociolabs.io/reviews';
+    const baseUrl = 'https://api.soco.id/reviews';
+    const url = `${baseUrl}?filter=${encodeURIComponent(filterJson)}&skip=0&limit=10`;
+    
+    const options = {
+        headers: {
+            Accept: 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            Connection: 'keep-alive',
+            DNT: '1',
+            'SOC-PLATFORM': 'review-web-mobile',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors'
+        }
+    };
 
     try {
-        const response = await axios.get(FULL_URL);
+        // Using axios but with the full URL instead of params
+        const response = await axios.get(url, options);
+        console.log("Reviews API response:", response.data);
         const reviews = response.data?.data || []; // Ensure data exists
-
         return reviews;
     } catch (error) {
         console.error("Error fetching reviews:", error.message);
+        if (error.response) {
+            console.error("Error response:", error.response.data);
+        }
         return [];
     }
 };
@@ -60,21 +106,37 @@ const fetchReviews = async (id) => {
  */
 router.get('/matching-percentage', async (req, res) => {
     try {
+        // Get product ID from query params
+        const { productId } = req.query;
+        
+        if (!productId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product ID is required'
+            });
+        }
+        
         // Get user's beauty profile
-        let userBeautyProfile = null;
-        try {
-            const user = await fetchUser(req.headers.authorization);
-            userBeautyProfile = user.beauty || [];
-        } catch (error) {
-            throw new Errors.NotFoundError(Errors.CODES.ERR_USER_NOT_FOUND, 'User not found');
+        const user = await fetchUser(req.headers.authorization);
+        const userBeautyProfile = user.beauty || [];
+
+        // Check if user data was successfully retrieved
+        if (Object.keys(user).length === 0) {
+            return res.json({
+                matching_percentage: 0,
+                message: 'Unable to retrieve user data',
+                details: {},
+                success: true
+            });
         }
 
         if (!userBeautyProfile || !userBeautyProfile.length) {
-            return {
+            return res.json({
                 matching_percentage: 0,
                 message: 'User has no beauty profile',
                 details: {},
-            };
+                success: true
+            });
         }
 
         // Prepare user's beauty attributes map for easy comparison
@@ -86,7 +148,7 @@ router.get('/matching-percentage', async (req, res) => {
             }
         });
 
-        const reviews = await fetchReviews(req.params.productId);
+        const reviews = await fetchReviews(productId);
 
         if (!reviews || !reviews.length) {
             return {
@@ -289,7 +351,11 @@ router.get('/matching-percentage', async (req, res) => {
         });
     } catch (error) {
         console.error('Error calculating user matching percentage:', error);
-        throw error;
+        res.status(500).json({
+            success: false,
+            message: 'Error calculating matching percentage',
+            error: error.message
+        });
     }
 });
 
@@ -297,11 +363,26 @@ router.get('/analyze', async (req, res) => {
     // This route will handle review analysis functionality
 
     try {
+        const { productId } = req.query;
+        
+        if (!productId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product ID is required'
+            });
+        }
 
-        const reviews = await fetchReviews();
+        const reviews = await fetchReviews(productId);
 
-        const reviewsText = reviews.map((r) => r.comment);
-        const prompt = `Summarize these product reviews:\n\n${reviewsText}`;
+        const reviewsText = reviews.map((r) => ({
+            detail: r.detail,
+            user: r.user,
+            is_recommended: r.is_recommended,
+         is_repurchase: r.is_repurchase,
+            average_rating: r.average_rating,
+            created_at: r.created_at,
+        }));
+        const prompt = `Summarize these product reviews:\n\n${JSON.stringify(reviewsText)}`;
         console.log(reviewsText, 'reviewsText');
 
         const response = await axios.post(
@@ -311,7 +392,7 @@ router.get('/analyze', async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'merangkum ulasan produk. Berikan ringkasan yang terstruktur dengan kelebihan dan kekurangan.',
+                        content: 'merangkum ulasan produk. Berikan ringkasan yang terstruktur dengan kelebihan dan kekurangan. Refer to the customers as "Bestie", e.g. Besties menyukai produk ini karena...',
                     },
                     {
                         role: 'user',
@@ -363,15 +444,18 @@ router.get('/compare', async (req, res) => {
         }
 
         // Get user's beauty profile
-        let userBeautyProfile = null;
-        try {
-            const user = await fetchUser(req.headers.authorization);
-            userBeautyProfile = user.beauty || [];
-        } catch (error) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-                error: 'Failed to fetch user data'
+        const user = await fetchUser(req.headers.authorization);
+        const userBeautyProfile = user.beauty || [];
+        
+        // Check if user data was successfully retrieved
+        if (Object.keys(user).length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'Unable to retrieve user data',
+                data: {
+                    product1: { attribute_percentages: {} },
+                    product2: { attribute_percentages: {} }
+                }
             });
         }
 
