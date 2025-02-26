@@ -111,7 +111,10 @@ router.post('/analyze/:id', async (req, res) => {
             contoh efek:
             ✅ Teman dengan kulit normal dan kombinasi merasa produk ini melembapkan dan tahan lama.
             ⚠️ Kulit Kering: Beberapa teman melaporkan adanya kemerahan atau rasa kencang setelah penggunaan.
-            ⚠️ Kulit Berminyak: Beberapa pengguna merasa produk ini terlalu berat dan menyebabkan jerawat setelah beberapa hari penggunaan.`,
+            ⚠️ Kulit Berminyak: Beberapa pengguna merasa produk ini terlalu berat dan menyebabkan jerawat setelah beberapa hari penggunaan.
+            ---
+            tolong taro response sebagain JSON
+            `,
         },
         {
             role: 'user',
@@ -144,7 +147,7 @@ router.post('/analyze/:id', async (req, res) => {
           },
         ],
         function_call: { name: 'create_review_summary' },
-        max_tokens: 150,
+        max_tokens: 450,
     },
     {
         headers: {
