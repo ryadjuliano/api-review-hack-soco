@@ -157,6 +157,7 @@ router.post('/analyze/:id', async (req, res) => {
     }
     );
 
+    console.log(response.data.choices[0]?.message?.function_call?.arguments);
     // Parse the function response
     const functionResponse = JSON.parse(response.data.choices[0]?.message?.function_call?.arguments || '{"review_summary": "No summary available."}');
     const summary = functionResponse.review_summary;
