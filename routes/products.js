@@ -111,10 +111,15 @@ router.post('/analyze/:id', async (req, res) => {
 
             contoh efek:
             ✅ Teman dengan kulit normal dan kombinasi merasa produk ini melembapkan dan tahan lama.
-            ⚠️ Kulit Kering: Beberapa teman melaporkan adanya kemerahan atau rasa kencang setelah penggunaan.
-            ⚠️ Kulit Berminyak: Beberapa pengguna merasa produk ini terlalu berat dan menyebabkan jerawat setelah beberapa hari penggunaan.
+            ⚠️ Kulit Kering: Beberapa bestie melaporkan adanya kemerahan atau rasa kencang setelah penggunaan.
+            ⚠️ Kulit Berminyak: Beberapa bestie merasa produk ini terlalu berat dan menyebabkan jerawat setelah beberapa hari penggunaan.
             ---
-            tolong taro response sebagain JSON
+            
+            tolong referensi reviewer2 sebagai "Bestie". 
+            contoh: Beberapa bestie melaporkan kemerahan atau rasa kencang setelah penggunaan.
+            ---
+
+            tolong taro response sebagain JSON.
             `,
         },
         {
@@ -162,6 +167,7 @@ router.post('/analyze/:id', async (req, res) => {
     // Parse the function response
     const functionResponse = JSON.parse(response.data.choices[0]?.message?.function_call?.arguments || '{"review_summary": "No summary available."}');
     const summary = functionResponse.review_summary;
+    
     
     res.json({ 
       success: true, 
