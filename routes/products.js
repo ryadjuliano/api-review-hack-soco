@@ -18,12 +18,7 @@ const fetchProduct = async () => {
     try {
       const response = await axios.get(FULL_URL);
       const products = response.data?.data || []; // Ensure data exists
-      console.log(products,'products');
-      return products.map((product, index) => ({
-        id: product?.id || index + 1,
-        brand: product?.brand || "Unknown",
-        updated_at: product?.updated_at || new Date().toISOString(),
-      }));
+      return products
     } catch (error) {
       console.error("Error fetching products:", error.response?.data || error.message);
       return [];
@@ -64,6 +59,7 @@ const fetchReviews = async (id) => {
 router.get('/products', async (req, res) => {
   // This route will handle products functionality
   const product = await fetchProduct();
+  console.log(product);
   res.json({ 
     success: true, 
     message: 'Review analysis endpoint',
@@ -91,12 +87,12 @@ router.post('/products/reviews/:id', async (req, res) => {
     }
 });
 
-router.get('/analyze', async (req, res) => {
+router.post('/analyze/:id', async (req, res) => {
   // This route will handle review analysis functionality
-
+  const { id } = req.params; 
   try {
 
-    const reviews = await fetchReviews();
+    const reviews = await fetchReviews(id);
     const reviewsText = reviews.map((r) => r.comment);
     const prompt = `Summarize these product reviews:\n\n${reviewsText}`;
     const response = await axios.post(
@@ -134,10 +130,27 @@ router.get('/analyze', async (req, res) => {
     });
 
 } catch (error) {
-    console.error('Error calling OpenAI:', error.response?.data || error.message);
+    // console.error('Error calling OpenAI:', error.response?.data || error.message);
     res.status(500).json({ review_summary: "Failed to generate review summary." });
 }
 
+});
+
+router.post('/products/recommend', async (req, res) => {
+    const { id } = req.params; // Extract id from request params
+    try {
+        const product = await fetchProduct();
+        res.json({ 
+            success: true, 
+            message: 'Review analysis endpoint',
+            data: {
+                product,
+                timestamp: new Date()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Failed to fetch reviews", error: error.message });
+    }
 });
 
 
