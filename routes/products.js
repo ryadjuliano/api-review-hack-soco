@@ -97,6 +97,7 @@ router.post('/analyze/:id', async (req, res) => {
   try {
 
     const reviews = await fetchReviews(id);
+    console.log('reviews', reviews);
     const reviewsText = reviews.map((r) => r.comment);
     
     const prompt = `Summarize these product reviews:\n\n${reviewsText}`;
