@@ -34,7 +34,9 @@ const fetchReviews = async (id) => {
             is_published: true,
             elastic_search: true,
             product_id: id,
-            is_highlight: true
+            is_highlight: true,
+            is_spam: false,
+            deleted_at: null
         })
     );
 
