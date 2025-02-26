@@ -93,6 +93,7 @@ router.post('/products/reviews/:id', async (req, res) => {
 router.post('/analyze/:id', async (req, res) => {
   // This route will handle review analysis functionality
   const { id } = req.params; 
+  console.log('id', id);
   try {
 
     const reviews = await fetchReviews(id);
