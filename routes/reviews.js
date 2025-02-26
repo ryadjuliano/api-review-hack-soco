@@ -8,7 +8,7 @@ const axios = require('axios');
  * @param {object} authHeader - Authorization header from request
  * @returns {Promise<object>} User data
  */
-const fetchUser = async (authHeader) => {
+const fetchUser = async () => {
     try {
         // const apiUrl = 'https://uat-ms-soco-public-api.sociolabs.io/user/me';
         const apiUrl = 'https://api.soco.id/user/me';
@@ -25,7 +25,7 @@ const fetchUser = async (authHeader) => {
         
         const response = await apiClient.get(url, {
             headers: {
-                Authorization: authHeader,
+                Authorization: `Bearer ${process.env.MY_BEARER_TOKEN}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 // Add a user agent to make the request look more like a browser
@@ -117,7 +117,7 @@ router.get('/matching-percentage', async (req, res) => {
         }
         
         // Get user's beauty profile
-        const user = await fetchUser(req.headers.authorization);
+        const user = await fetchUser();
         const userBeautyProfile = user.beauty || [];
 
         // Check if user data was successfully retrieved
@@ -444,7 +444,7 @@ router.get('/compare', async (req, res) => {
         }
 
         // Get user's beauty profile
-        const user = await fetchUser(req.headers.authorization);
+        const user = await fetchUser();
         const userBeautyProfile = user.beauty || [];
         
         // Check if user data was successfully retrieved
