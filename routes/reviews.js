@@ -27,6 +27,36 @@ const fetchUser = async (userId, authHeader) => {
   }
 };
 
+const fetchReviews = async (id) => {
+    const API_URL = "https://api.soco.id/reviews";
+    const FILTER_PARAMS = encodeURIComponent(
+      JSON.stringify({
+        is_published: true,
+        elastic_search: true,
+        product_id: id,
+        is_highlight: true
+      })
+    );
+  
+    const FULL_URL = `${API_URL}?filter=${FILTER_PARAMS}&skip=0&limit=6&sort=most_relevant`;
+  
+    try {
+      const response = await axios.get(FULL_URL);
+      const reviews = response.data?.data || []; // Ensure data exists
+  
+      return reviews.map((review, index) => ({
+        id: index + 1,
+        user: review?.user?.name || "Anonymous",
+        rating: review?.average_rating || 0,
+        comment: review?.details || "No comment provided",
+        date: review?.created_at || new Date().toISOString(),
+      }));
+    } catch (error) {
+      console.error("Error fetching reviews:", error.message);
+      return [];
+    }
+};
+
 /**
  * @route   GET /api/reviews/matching-percentage
  * @desc    Get the matching percentage for reviews
