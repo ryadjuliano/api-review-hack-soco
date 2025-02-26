@@ -1,5 +1,31 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
+
+/**
+ * Fetch user data from Soco accounts API
+ * @param {string} userId - User ID
+ * @param {object} authHeader - Authorization header from request
+ * @returns {Promise<object>} User data
+ */
+const fetchUser = async (userId, authHeader) => {
+  try {
+    const apiUrl = 'https://accounts-api.soco.id/user/me';
+    const filter = encodeURIComponent(JSON.stringify({ get_user_address: true }));
+    const url = `${apiUrl}?filter=${filter}`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: authHeader
+      }
+    });
+    
+    return response.data?.data || {};
+  } catch (error) {
+    console.error('Error fetching user data:', error.message);
+    throw new Error('Failed to fetch user data');
+  }
+};
 
 /**
  * @route   GET /api/reviews/matching-percentage
@@ -15,10 +41,11 @@ router.get('/matching-percentage', async (req, res) => {
         // For demo purposes, use a static user ID
         const userId = req.query.userId || "123";
         
-        // Get user's beauty profile
+        // Get user's beauty profile using authorization header
         let userBeautyProfile = null;
         try {
-          const user = await fetchUser(userId);
+          const authHeader = req.headers.authorization;
+          const user = await fetchUser(userId, authHeader);
           userBeautyProfile = user.beauty || [];
         } catch (error) {
           return res.status(404).json({
