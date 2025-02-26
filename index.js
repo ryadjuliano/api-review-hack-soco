@@ -12,13 +12,6 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
-// Dummy review data
-const dummyReviews = [
-  { id: 1, product: "Laptop", review: "Great performance, but battery life is short." },
-  { id: 2, product: "Laptop", review: "Amazing screen and fast processor!" },
-  { id: 3, product: "Laptop", review: "Good value for money, but the keyboard is not comfortable." },
-];
-
 
 const fetchReviews = async () => {
     const API_URL = "https://api.soco.id/reviews";
