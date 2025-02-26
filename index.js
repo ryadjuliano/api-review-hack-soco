@@ -26,7 +26,8 @@ app.get('/', (req, res) => {
     message: 'API Review Hack API is running',
     endpoints: [
       '/api/reviews/matching-percentage',
-      '/api/reviews/analyze'
+      '/api/reviews/analyze',
+      '/api/reviews/compare'
     ]
   });
 });
