@@ -4,19 +4,14 @@ const axios = require("axios");
 
 
 const fetchProduct = async () => {
-    const API_URL = "https://catalog-api1.sociolla.com/v3/products";
-    const FILTER_PARAMS = encodeURIComponent(
-      JSON.stringify({
-        skip: 10,
-        limit: 5,
-        sort: "-updated_at",
-      })
-    );
-  
-    const FULL_URL = `https://catalog-api1.sociolla.com/v3/products?skip=20&limit=20&sort=-updated_at/`;
+    const FULL_URL = `https://api.soco.id/products/featured/trending`;
   
     try {
-      const response = await axios.get(FULL_URL);
+      const response = await axios.get(FULL_URL, {
+        params: {
+          limit: 5,
+        }
+      });
       const products = response.data?.data || []; // Ensure data exists
       return products
     } catch (error) {
