@@ -392,14 +392,14 @@ router.get('/analyze', async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'merangkum ulasan produk. Berikan ringkasan yang terstruktur dengan kelebihan dan kekurangan. Refer to the customers as "Bestie", e.g. Besties menyukai produk ini karena...',
+                        content: 'Anda adalah asisten untuk merangkum ulasan produk kecantikan. Berikan ringkasan yang terstruktur dengan format berikut:\n\n1. RINGKASAN UMUM: Ringkasan singkat tentang sentimen umum (1-2 kalimat).\n\n2. KELEBIHAN: Bullet points (3-5) tentang hal-hal yang paling sering dipuji oleh Besties, seperti tekstur, hasil, kemasan, dll.\n\n3. unakan bahasa yang ramah dan natural. Selalu gunakan istilah "Besties" saat merujuk pada pelanggan/reviewer. Batasi respon hingga 450 token dan fokus pada informasi yang paling bernilai bagi calon pembeli.',
                     },
                     {
                         role: 'user',
                         content: prompt,
                     },
                 ],
-                max_tokens: 150,
+                max_tokens: 450,
             },
             {
                 headers: {
