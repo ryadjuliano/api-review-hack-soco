@@ -109,43 +109,59 @@ router.post('/products/reviews/:id', async (req, res) => {
 router.post('/analyze/:id', async (req, res) => {
   // This route will handle review analysis functionality
   const { id } = req.params; 
-  console.log('id', id);
+  console.log('Processing analysis for product ID:', id);
   try {
-
+    // Step 1: Fetch reviews
+    console.log(`Fetching reviews for product ${id}...`);
     const reviews = await fetchReviews(id);
-    console.log('reviews', reviews);
     
-    // Extract detailed information for the prompt
-    const reviewsWithContext = reviews.map(review => {
-      const skinTypes = review.user.skin_types.length > 0 
-        ? `Tipe kulit: ${review.user.skin_types.join(', ')}` 
-        : '';
-      const ageRange = review.user.age_range !== "Tidak disebutkan" 
-        ? `Usia: ${review.user.age_range}` 
-        : '';
-      const usageDuration = review.usage.duration !== "Tidak disebutkan" 
-        ? `Durasi penggunaan: ${review.usage.duration}` 
-        : '';
-      const ratings = `Rating: ${review.ratings.overall}/5 (Tekstur: ${review.ratings.texture}, Ketahanan: ${review.ratings.long_wear})`;
-      
-      const userContext = [skinTypes, ageRange, usageDuration, ratings]
-        .filter(item => item !== '')
-        .join(' | ');
+    if (!reviews || reviews.length === 0) {
+      console.error(`No reviews found for product ${id}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No reviews found for this product',
+        error_code: 'REVIEWS_NOT_FOUND'
+      });
+    }
+    
+    console.log(`Found ${reviews.length} reviews for product ${id}`);
+    
+    // Step 2: Process reviews for prompt
+    try {
+      const reviewsWithContext = reviews.map(review => {
+        const skinTypes = review.user.skin_types.length > 0 
+          ? `Tipe kulit: ${review.user.skin_types.join(', ')}` 
+          : '';
+        const ageRange = review.user.age_range !== "Tidak disebutkan" 
+          ? `Usia: ${review.user.age_range}` 
+          : '';
+        const usageDuration = review.usage.duration !== "Tidak disebutkan" 
+          ? `Durasi penggunaan: ${review.usage.duration}` 
+          : '';
+        const ratings = `Rating: ${review.ratings.overall}/5 (Tekstur: ${review.ratings.texture}, Ketahanan: ${review.ratings.long_wear})`;
         
-      return `REVIEW ${review.id}:\n${review.comment}\n${userContext}\n`;
-    });
+        const userContext = [skinTypes, ageRange, usageDuration, ratings]
+          .filter(item => item !== '')
+          .join(' | ');
+          
+        return `REVIEW ${review.id}:\n${review.comment}\n${userContext}\n`;
+      });
 
-    const reviewsText = reviewsWithContext.join('\n');
-    
-    const prompt = `Summarize these product reviews:\n\n${reviewsText}`;
-    const response = await axios.post(
-    'https://api.openai.com/v1/chat/completions',
-    {
-        model: 'gpt-4o-mini',
-        messages: [
-        {
-            role: 'system',
-            content: `Anda adalah asisten untuk merangkum ulasan produk kecantikan. Tugas Anda adalah menyediakan:
+      const reviewsText = reviewsWithContext.join('\n');
+      
+      // Step 3: Call OpenAI API
+      console.log('Calling OpenAI API for review analysis...');
+      const prompt = `Summarize these product reviews:\n\n${reviewsText}`;
+      
+      try {
+        const response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `Anda adalah asisten untuk merangkum ulasan produk kecantikan. Tugas Anda adalah menyediakan:
 
 1. RINGKASAN UMUM: Ringkasan singkat tentang sentimen umum dan poin-poin kunci yang disebutkan dalam ulasan (1-2 kalimat).
 2. EFEK YANG DILAPORKAN: Daftar efek spesifik yang dilaporkan oleh pengguna berdasarkan tipe kulit, usia, dan durasi penggunaan.
@@ -171,70 +187,126 @@ Contoh EFEK YANG DILAPORKAN yang baik:
 ✅ "Besties memuji tekstur ringan (rating 4.9/5) dan tidak terasa lengket saat diaplikasikan."
 ⚠️ "Beberapa Besties dengan kulit sensitif mungkin perlu berhati-hati karena belum ada laporan khusus untuk tipe kulit ini."
 
-Fokus pada menghasilkan field review_summary dan review_effects yang akurat, informatif, dan relevan dengan produk yang diulas. Gunakan data rating khusus (texture, long_wear, dll) untuk memperkaya insight Anda.`,
-        },
-        {
-            role: 'user',
-            content: prompt,
-        },
-        ],
-        functions: [
-          {
-            name: 'create_review_summary',
-            description: 'Creates a JSON object containing a field for review summary.',
-            parameters: {
-              type: 'object',
-              required: ['review_summary'],
-              properties: {
-                review_summary: {
-                  type: 'string',
-                  description: 'Summary of the review',
-                },
-                review_effects: {
-                  type: 'array',
-                  description: 'Effects of the review',
-                  items: {
-                    type: 'string',
-                    description: 'A specific effect or feedback reported by users'
-                  }
+Fokus pada menghasilkan field review_summary dan review_effects yang akurat, informatif, dan relevan dengan produk yang diulas. Gunakan data rating khusus (texture, long_wear, dll) untuk memperkaya insight Anda.
+
+Batasi respon hingga 550 token.
+`,
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            functions: [
+              {
+                name: 'create_review_summary',
+                description: 'Creates a JSON object containing a field for review summary.',
+                parameters: {
+                  type: 'object',
+                  required: ['review_summary'],
+                  properties: {
+                    review_summary: {
+                      type: 'string',
+                      description: 'Summary of the review',
+                    },
+                    review_effects: {
+                      type: 'array',
+                      description: 'Effects of the review',
+                      items: {
+                        type: 'string',
+                        description: 'A specific effect or feedback reported by users'
+                      }
+                    },
+                  },
+                  additionalProperties: false,
                 },
               },
-              additionalProperties: false,
-            },
+            ],
+            function_call: { name: 'create_review_summary' },
+            max_tokens: 650,
           },
-        ],
-        function_call: { name: 'create_review_summary' },
-        max_tokens: 450,
-    },
-    {
-        headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-        },
-    }
-    );
-
-    console.log(response.data.choices[0]?.message?.function_call?.arguments);
-    // Parse the function response
-    const functionResponse = JSON.parse(response.data.choices[0]?.message?.function_call?.arguments || '{"review_summary": "No summary available."}');
-    const summary = functionResponse.review_summary;
-    
-    
-    res.json({ 
-      success: true, 
-      message: 'Review analysis endpoint',
-      data: {
-        summary: summary,
-        effects: functionResponse.review_effects,
-        timestamp: new Date()
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        
+        // Step 4: Parse response
+        console.log('OpenAI API response received, parsing results...');
+        if (!response.data || !response.data.choices || !response.data.choices[0]) {
+          console.error('Invalid response structure from OpenAI:', response.data);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to analyze reviews - invalid response from AI',
+            error_code: 'INVALID_AI_RESPONSE'
+          });
+        }
+        
+        const functionArgsRaw = response.data.choices[0]?.message?.function_call?.arguments;
+        console.log('Function arguments received:', functionArgsRaw);
+        
+        if (!functionArgsRaw) {
+          console.error('Missing function arguments in OpenAI response');
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to analyze reviews - missing summary data',
+            error_code: 'MISSING_SUMMARY_DATA'
+          });
+        }
+        
+        try {
+          // Parse the function response
+          const functionResponse = JSON.parse(functionArgsRaw);
+          console.log('Successfully parsed review summary data');
+          
+          res.json({ 
+            success: true, 
+            message: 'Review analysis successful',
+            data: {
+              summary: functionResponse.review_summary || "No summary available.",
+              effects: functionResponse.review_effects || [],
+              review_count: reviews.length,
+              timestamp: new Date()
+            }
+          });
+        } catch (parseError) {
+          console.error('Error parsing OpenAI function arguments:', parseError);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to parse AI response',
+            error_code: 'PARSE_ERROR',
+            details: parseError.message
+          });
+        }
+      } catch (openAiError) {
+        console.error('OpenAI API error:', openAiError.response?.status, openAiError.response?.data?.error || openAiError.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error communicating with AI service',
+          error_code: 'AI_SERVICE_ERROR',
+          details: openAiError.response?.data?.error?.message || openAiError.message
+        });
       }
+    } catch (processingError) {
+      console.error('Error processing reviews:', processingError);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error processing review data',
+        error_code: 'PROCESSING_ERROR',
+        details: processingError.message
+      });
+    }
+  } catch (error) {
+    console.error('General error in analyze endpoint:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to analyze reviews",
+      error_code: 'GENERAL_ERROR',
+      details: error.message
     });
-
-} catch (error) {
-    // console.error('Error calling OpenAI:', error.response?.data || error.message);
-    res.status(500).json({ review_summary: "Failed to generate review summary." });
-}
-
+  }
 });
 
 router.post('/products/recommend', async (req, res) => {
